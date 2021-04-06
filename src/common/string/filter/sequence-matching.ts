@@ -10,8 +10,12 @@ import { fuzzyScore } from "./filter";
  * @return {number} Score representing how well the word matches the filter. Return of 0 means no match.
  */
 
-export const fuzzySequentialMatch = (filter: string, ...words: string[]) => {
+export const fuzzySequentialMatch = (
+  filter: string,
+  item: ScorableTextItem
+) => {
   let topScore = Number.NEGATIVE_INFINITY;
+  const words = item.words;
 
   for (const word of words) {
     const scores = fuzzyScore(
@@ -51,8 +55,7 @@ export const fuzzySequentialMatch = (filter: string, ...words: string[]) => {
 
 export interface ScorableTextItem {
   score?: number;
-  filterText: string;
-  altText?: string;
+  words: string[];
 }
 
 type FuzzyFilterSort = <T extends ScorableTextItem>(
@@ -63,9 +66,7 @@ type FuzzyFilterSort = <T extends ScorableTextItem>(
 export const fuzzyFilterSort: FuzzyFilterSort = (filter, items) => {
   return items
     .map((item) => {
-      item.score = item.altText
-        ? fuzzySequentialMatch(filter, item.filterText, item.altText)
-        : fuzzySequentialMatch(filter, item.filterText);
+      item.score = fuzzySequentialMatch(filter, item);
       return item;
     })
     .filter((item) => item.score !== undefined)
