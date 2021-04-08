@@ -53,6 +53,7 @@ import {
 } from "../generic/show-dialog-box";
 import { QuickBarParams } from "./show-dialog-quick-bar";
 import "../../components/ha-chip";
+import { toTitleCase } from "../../common/string/casing";
 
 interface QuickBarItem extends ScorableTextItem {
   primaryText: string;
@@ -263,11 +264,19 @@ export class QuickBar extends LitElement {
               class="entity"
               slot="graphic"
             ></ha-icon>`}
-        <span>${item.primaryText}</span>
+        <span
+          >${item.decoratedWords
+            ? item.decoratedWords[0]
+            : item.primaryText}</span
+        >
         ${item.altText
           ? html`
-              <span slot="secondary" class="item-text secondary"
-                >${item.altText}</span
+              <span slot="secondary" class="item-text secondary">
+                <span
+                  >${item.decoratedWords
+                    ? item.decoratedWords[1]
+                    : item.altText}</span
+                ></span
               >
             `
           : null}
@@ -276,6 +285,8 @@ export class QuickBar extends LitElement {
   }
 
   private _renderCommandItem(item: CommandItem, index?: number) {
+    const decoratedItem = item.decoratedWords && item.decoratedWords[0];
+
     return html`
       <mwc-list-item
         .item=${item}
@@ -295,11 +306,13 @@ export class QuickBar extends LitElement {
                   slot="icon"
                 ></ha-svg-icon>`
               : ""}
-            ${item.categoryText}</ha-chip
+            ${decoratedItem ? decoratedItem[0] : item.categoryText}</ha-chip
           >
         </span>
 
-        <span class="command-text">${item.primaryText}</span>
+        <span class="command-text"
+          >${decoratedItem ? decoratedItem[1] : item.primaryText}</span
+        >
       </mwc-list-item>
     `;
   }
@@ -353,6 +366,10 @@ export class QuickBar extends LitElement {
     } else {
       this._commandMode = false;
       this._search = newFilter;
+      this._filter = this._search;
+      if (this._filter === "") {
+        this._clearSearch();
+      }
     }
 
     if (oldCommandMode !== this._commandMode) {
@@ -367,6 +384,18 @@ export class QuickBar extends LitElement {
   private _clearSearch() {
     this._search = "";
     this._filter = "";
+    this._resetDecorations();
+  }
+
+  private _resetDecorations() {
+    this._entityItems = this._entityItems?.map((item) => ({
+      ...item,
+      decoratedWords: undefined,
+    }));
+    this._commandItems = this._commandItems?.map((item) => ({
+      ...item,
+      decoratedWords: undefined,
+    }));
   }
 
   private _debouncedSetFilter = debounce((filter: string) => {
@@ -428,26 +457,27 @@ export class QuickBar extends LitElement {
 
     return reloadableDomains.map((domain) => {
       const commandItem = {
-        primaryText:
+        primaryText: toTitleCase(
           this.hass.localize(
             `ui.dialogs.quick-bar.commands.reload.${domain}`
           ) ||
-          this.hass.localize(
-            "ui.dialogs.quick-bar.commands.reload.reload",
-            "domain",
-            domainToName(this.hass.localize, domain)
-          ),
+            this.hass.localize(
+              "ui.dialogs.quick-bar.commands.reload.reload",
+              "domain",
+              domainToName(this.hass.localize, domain)
+            )
+        ),
         action: () => this.hass.callService(domain, "reload"),
         iconPath: mdiReload,
-        categoryText: this.hass.localize(
-          `ui.dialogs.quick-bar.commands.types.reload`
+        categoryText: toTitleCase(
+          this.hass.localize(`ui.dialogs.quick-bar.commands.types.reload`)
         ),
       };
 
       return {
         ...commandItem,
         categoryKey: "reload",
-        words: [`${commandItem.categoryText} ${commandItem.primaryText}`],
+        words: [`${commandItem.categoryText}::${commandItem.primaryText}`],
       };
     });
   }
@@ -459,16 +489,20 @@ export class QuickBar extends LitElement {
       const categoryKey: CommandItem["categoryKey"] = "server_control";
 
       const item = {
-        primaryText: this.hass.localize(
-          "ui.dialogs.quick-bar.commands.server_control.perform_action",
-          "action",
+        primaryText: toTitleCase(
           this.hass.localize(
-            `ui.dialogs.quick-bar.commands.server_control.${action}`
+            "ui.dialogs.quick-bar.commands.server_control.perform_action",
+            "action",
+            this.hass.localize(
+              `ui.dialogs.quick-bar.commands.server_control.${action}`
+            )
           )
         ),
         iconPath: mdiServerNetwork,
-        categoryText: this.hass.localize(
-          `ui.dialogs.quick-bar.commands.types.${categoryKey}`
+        categoryText: toTitleCase(
+          this.hass.localize(
+            `ui.dialogs.quick-bar.commands.types.${categoryKey}`
+          )
         ),
         categoryKey,
         action: () => this.hass.callService("homeassistant", action),
@@ -477,7 +511,7 @@ export class QuickBar extends LitElement {
       return this._generateConfirmationCommand(
         {
           ...item,
-          words: [`${item.categoryText} ${item.primaryText}`],
+          words: [`${item.categoryText}::${item.primaryText}`],
         },
         this.hass.localize("ui.dialogs.generic.ok")
       );
@@ -566,16 +600,19 @@ export class QuickBar extends LitElement {
 
       const navItem = {
         ...item,
+        primaryText: toTitleCase(item.primaryText),
         iconPath: mdiEarth,
-        categoryText: this.hass.localize(
-          `ui.dialogs.quick-bar.commands.types.${categoryKey}`
+        categoryText: toTitleCase(
+          this.hass.localize(
+            `ui.dialogs.quick-bar.commands.types.${categoryKey}`
+          )
         ),
         action: () => navigate(this, item.path),
       };
 
       return {
         ...navItem,
-        words: [`${navItem.categoryText} ${navItem.primaryText}`],
+        words: [`${navItem.categoryText}::${navItem.primaryText}`],
         categoryKey,
       };
     });
@@ -650,6 +687,16 @@ export class QuickBar extends LitElement {
           margin-left: 8px;
         }
 
+        ha-chip.command-category span.highlight-letter {
+          font-weight: bold;
+          color: #0051ff;
+        }
+
+        span.command-text span.highlight-letter {
+          font-weight: bold;
+          color: #0098ff;
+        }
+
         .uni-virtualizer-host {
           display: block;
           position: relative;
@@ -664,10 +711,6 @@ export class QuickBar extends LitElement {
 
         mwc-list-item {
           width: 100%;
-        }
-
-        mwc-list-item.command-item {
-          text-transform: capitalize;
         }
       `,
     ];
