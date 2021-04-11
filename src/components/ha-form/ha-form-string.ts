@@ -11,6 +11,7 @@ import {
   property,
   query,
   TemplateResult,
+  PropertyValues,
 } from "lit-element";
 import { fireEvent } from "../../common/dom/fire_event";
 import "../ha-svg-icon";
@@ -20,6 +21,7 @@ import type {
   HaFormStringSchema,
 } from "./ha-form";
 import "@material/mwc-icon-button/mwc-icon-button";
+import { HaPassmanHelper } from "../../auth/ha-passman-helper";
 
 @customElement("ha-form-string")
 export class HaFormString extends LitElement implements HaFormElement {
@@ -31,9 +33,22 @@ export class HaFormString extends LitElement implements HaFormElement {
 
   @property() public suffix!: string;
 
+  @property() public name?: string;
+
+  @internalProperty() private _passmanField = false;
+
   @internalProperty() private _unmaskedPassword = false;
 
   @query("paper-input") private _input?: HTMLElement;
+
+  // public connectedCallback() {
+  //   super.connectedCallback();
+  //   if (this._passmanField) {
+  //     fireEvent(this, "passman-helper-required", {
+  //       target: this,
+  //     });
+  //   }
+  // }
 
   public focus(): void {
     if (this._input) {
@@ -47,6 +62,8 @@ export class HaFormString extends LitElement implements HaFormElement {
           <paper-input
             .type=${this._unmaskedPassword ? "text" : "password"}
             .label=${this.label}
+            .autocomplete=${"current-password"}
+            .name=${this.name}
             .value=${this.data}
             .required=${this.schema.required}
             .autoValidate=${this.schema.required}
@@ -76,6 +93,16 @@ export class HaFormString extends LitElement implements HaFormElement {
             @value-changed=${this._valueChanged}
           ></paper-input>
         `;
+  }
+
+  protected firstUpdated(changedProps: PropertyValues) {
+    super.firstUpdated(changedProps);
+    if (this.schema.name.includes("password")) {
+      this._passmanField = true;
+      const helper = new HaPassmanHelper();
+      helper.parentName = this.schema.name;
+      document.body.appendChild(helper);
+    }
   }
 
   private _toggleUnmaskedPassword(): void {
@@ -117,5 +144,11 @@ export class HaFormString extends LitElement implements HaFormElement {
 declare global {
   interface HTMLElementTagNameMap {
     "ha-form-string": HaFormString;
+  }
+}
+
+declare global {
+  interface HASSDomEvents {
+    "passman-helper": { helper: HaPassmanHelper };
   }
 }

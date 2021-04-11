@@ -31,7 +31,7 @@ class HaAuthorize extends litLocalizeLiteMixin(LitElement) {
 
   @property() public oauth2State?: string;
 
-  @internalProperty() private _authProvider?: AuthProvider;
+  @property() public _authProvider?: AuthProvider;
 
   @internalProperty() private _authProviders?: AuthProvider[];
 
@@ -146,7 +146,7 @@ class HaAuthorize extends litLocalizeLiteMixin(LitElement) {
       // We prefetch this data on page load in authorize.html.template for modern builds
       const response = await ((window as any).providersPromise ||
         fetchAuthProviders());
-      const authProviders = await response.json();
+      const authProviders = await response.clone().json();
 
       // Forward to main screen which will redirect to right onboarding page.
       if (
